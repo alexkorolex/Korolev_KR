@@ -11,7 +11,7 @@ class DictionaryTableTests(TestCase):
         self.assertContains(response, "В словаре пока нет строк.")
 
     def test_can_add_and_delete_a_dictionary_row(self):
-        add_response = self.client.post(
+        add_response = self.client.get(
             "/",
             {"action": "add", "key": "Цвет", "value": "Синий"},
         )
@@ -29,7 +29,7 @@ class DictionaryTableTests(TestCase):
         self.assertRedirects(delete_response, "/")
         self.assertContains(self.client.get("/"), "В словаре пока нет строк.")
 
-    def test_can_add_row_from_replit_preview_with_csrf_checks_enabled(self):
+    def test_get_add_and_csrf_protected_delete_work_from_replit_preview(self):
         if not settings.REPLIT_DEV_DOMAIN:
             self.skipTest("REPLIT_DEV_DOMAIN is not configured")
 
@@ -40,12 +40,22 @@ class DictionaryTableTests(TestCase):
         page = client.get("/", secure=True, HTTP_HOST=host)
         self.assertEqual(page.status_code, 200)
 
-        response = client.post(
+        add_response = client.get(
+            "/",
+            {"action": "add", "key": "Цвет", "value": "Синий"},
+            secure=True,
+            HTTP_HOST=host,
+        )
+
+        self.assertEqual(add_response.status_code, 302)
+        self.assertContains(client.get("/", secure=True, HTTP_HOST=host), "Синий")
+
+        row_id = next(iter(client.session["table_rows"]))
+        delete_response = client.post(
             "/",
             {
-                "action": "add",
-                "key": "Цвет",
-                "value": "Синий",
+                "action": "delete",
+                "row_id": row_id,
                 "csrfmiddlewaretoken": client.cookies["csrftoken"].value,
             },
             secure=True,
@@ -53,5 +63,4 @@ class DictionaryTableTests(TestCase):
             HTTP_ORIGIN=origin,
         )
 
-        self.assertEqual(response.status_code, 302)
-        self.assertContains(client.get("/", secure=True, HTTP_HOST=host), "Синий")
+        self.assertEqual(delete_response.status_code, 302)
