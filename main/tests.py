@@ -1,4 +1,5 @@
-from django.test import TestCase
+from django.conf import settings
+from django.test import Client, TestCase
 
 
 class DictionaryTableTests(TestCase):
@@ -27,3 +28,30 @@ class DictionaryTableTests(TestCase):
 
         self.assertRedirects(delete_response, "/")
         self.assertContains(self.client.get("/"), "В словаре пока нет строк.")
+
+    def test_can_add_row_from_replit_preview_with_csrf_checks_enabled(self):
+        if not settings.REPLIT_DEV_DOMAIN:
+            self.skipTest("REPLIT_DEV_DOMAIN is not configured")
+
+        client = Client(enforce_csrf_checks=True)
+        host = f"{settings.REPLIT_DEV_DOMAIN}:5000"
+        origin = f"https://{host}"
+
+        page = client.get("/", secure=True, HTTP_HOST=host)
+        self.assertEqual(page.status_code, 200)
+
+        response = client.post(
+            "/",
+            {
+                "action": "add",
+                "key": "Цвет",
+                "value": "Синий",
+                "csrfmiddlewaretoken": client.cookies["csrftoken"].value,
+            },
+            secure=True,
+            HTTP_HOST=host,
+            HTTP_ORIGIN=origin,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertContains(client.get("/", secure=True, HTTP_HOST=host), "Синий")
