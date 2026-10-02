@@ -4,9 +4,34 @@ from django.shortcuts import redirect, render
 
 
 SESSION_TABLE_KEY = "table_rows"
+SESSION_INITIALIZED_KEY = "table_initialized"
+SAMPLE_ROWS = (
+    ("Товар", "Блокнот А5"),
+    ("Категория", "Канцелярия"),
+    ("Цвет", "Тёмно-синий"),
+    ("Цена", "249 ₽"),
+    ("Остаток", "18 шт."),
+)
 
 
 def index(request):
+    if not request.session.get(SESSION_INITIALIZED_KEY):
+        existing_table = request.session.get(SESSION_TABLE_KEY)
+        if not isinstance(existing_table, dict):
+            existing_table = {}
+
+        existing_keys = {
+            row.get("key")
+            for row in existing_table.values()
+            if isinstance(row, dict)
+        }
+        for key, value in SAMPLE_ROWS:
+            if key not in existing_keys:
+                existing_table[str(uuid4())] = {"key": key, "value": value}
+
+        request.session[SESSION_TABLE_KEY] = existing_table
+        request.session[SESSION_INITIALIZED_KEY] = True
+
     table = request.session.get(SESSION_TABLE_KEY, {})
     if not isinstance(table, dict):
         table = {}

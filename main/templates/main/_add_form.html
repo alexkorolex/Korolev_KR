@@ -1,0 +1,10 @@
+<form class="add-form" method="get">
+    <input type="hidden" name="action" value="add">
+    <input type="text" name="key" placeholder="Ключ" aria-label="Ключ" required>
+    <input type="text" name="value" placeholder="Значение" aria-label="Значение" required>
+    <button type="submit">Добавить строку</button>
+</form>
+
+{% if error %}
+    <p class="error" role="alert">{{ error }}</p>
+{% endif %}

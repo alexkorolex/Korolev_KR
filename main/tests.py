@@ -3,12 +3,13 @@ from django.test import Client, TestCase
 
 
 class DictionaryTableTests(TestCase):
-    def test_index_displays_empty_table(self):
+    def test_index_displays_synthetic_dictionary_data(self):
         response = self.client.get("/")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Таблица словаря")
-        self.assertContains(response, "В словаре пока нет строк.")
+        self.assertContains(response, "Блокнот А5")
+        self.assertContains(response, "249 ₽")
 
     def test_can_add_and_delete_a_dictionary_row(self):
         add_response = self.client.get(
@@ -17,17 +18,24 @@ class DictionaryTableTests(TestCase):
         )
 
         self.assertRedirects(add_response, "/")
-        self.assertContains(self.client.get("/"), "Синий")
+        response = self.client.get("/")
+        self.assertContains(response, "Синий")
+        self.assertContains(response, "Блокнот А5")
 
         table = self.client.session["table_rows"]
-        row_id = next(iter(table))
+        row_id = next(
+            row_id for row_id, row in table.items()
+            if row["key"] == "Цвет" and row["value"] == "Синий"
+        )
         delete_response = self.client.post(
             "/",
             {"action": "delete", "row_id": row_id},
         )
 
         self.assertRedirects(delete_response, "/")
-        self.assertContains(self.client.get("/"), "В словаре пока нет строк.")
+        response = self.client.get("/")
+        self.assertNotContains(response, "Синий")
+        self.assertContains(response, "Блокнот А5")
 
     def test_get_add_and_csrf_protected_delete_work_from_replit_preview(self):
         if not settings.REPLIT_DEV_DOMAIN:
@@ -50,7 +58,10 @@ class DictionaryTableTests(TestCase):
         self.assertEqual(add_response.status_code, 302)
         self.assertContains(client.get("/", secure=True, HTTP_HOST=host), "Синий")
 
-        row_id = next(iter(client.session["table_rows"]))
+        row_id = next(
+            row_id for row_id, row in client.session["table_rows"].items()
+            if row["key"] == "Цвет" and row["value"] == "Синий"
+        )
         delete_response = client.post(
             "/",
             {
@@ -64,3 +75,4 @@ class DictionaryTableTests(TestCase):
         )
 
         self.assertEqual(delete_response.status_code, 302)
+        self.assertContains(client.get("/", secure=True, HTTP_HOST=host), "Блокнот А5")
